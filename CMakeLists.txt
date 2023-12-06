@@ -131,3 +131,9 @@ endif()
 if (OTBR_DOC)
     add_subdirectory(doc)
 endif()
+
+
+if(ENABLE_FUZZING)
+    message( STATUS "Fuzzing enabled.")
+    add_subdirectory(tests/fuzz)
+endif()
