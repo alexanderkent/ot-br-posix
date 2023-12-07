@@ -1,25 +1,39 @@
 #include "pskc.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <fuzzer/FuzzedDataProvider.h>
 #include <string>
+
+/**
+ * Constants.
+ */
+enum
+{
+    kMaxNetworkName = 16,
+    kMaxPassphrase  = 255,
+    kSizeExtPanId   = 8,
+};
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    // Ensure there's enough data to create meaningful inputs
-    if (size < 20)
+    FuzzedDataProvider stream(data, size);
+
+    // Generate aExtPanId
+    std::vector<uint8_t> aExtPanId = stream.ConsumeBytes<uint8_t>(kSizeExtPanId);
+    if (aExtPanId.size() != kSizeExtPanId)
     {
         return 0;
     }
 
-    // Split the input data into three parts for aExtPanId, aNetworkName, and aPassphrase
-    size_t         third_size   = size / 3;
-    const uint8_t *aExtPanId    = data; // First part for aExtPanId
-    const char    *aNetworkName = reinterpret_cast<const char *>(data + third_size);
-    const char    *aPassphrase  = reinterpret_cast<const char *>(data + 2 * third_size);
+    // Generate aNetworkName
+    std::string aNetworkName = stream.ConsumeRandomLengthString(kMaxNetworkName);
+
+    // Generate aPassphrase
+    std::string aPassphrase = stream.ConsumeRandomLengthString(kMaxPassphrase);
 
     // Call the function under test
     otbr::Psk::Pskc pskc;
-    const uint8_t  *comp_pskc = pskc.ComputePskc(aExtPanId, aNetworkName, aPassphrase);
+    const uint8_t  *comp_pskc = pskc.ComputePskc(aExtPanId.data(), aNetworkName.c_str(), aPassphrase.c_str());
     if (comp_pskc == nullptr)
     {
         return 1;
