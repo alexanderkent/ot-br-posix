@@ -35,8 +35,6 @@
 #include <string.h>
 #include <time.h>
 
-#include <string>
-
 #include <openthread/border_router.h>
 #include <openthread/channel_manager.h>
 #include <openthread/dataset_ftd.h>
@@ -50,6 +48,9 @@
 #include <openthread/nat64.h>
 #include "utils/sha256.hpp"
 #endif
+#if OTBR_ENABLE_DHCP6_PD
+#include "utils/sha256.hpp"
+#endif
 #if OTBR_ENABLE_LINK_METRICS_TELEMETRY
 #include <openthread/link_metrics.h>
 #endif
@@ -57,6 +58,9 @@
 #include <openthread/srp_server.h>
 #endif
 #include <openthread/thread_ftd.h>
+#if OTBR_ENABLE_TREL
+#include <openthread/trel.h>
+#endif
 #include <openthread/platform/radio.h>
 
 #include "common/byteswap.hpp"
@@ -184,6 +188,30 @@ void CopyNat64TrafficCounters(const otNat64Counters &from, threadnetwork::Teleme
 }
 #endif // OTBR_ENABLE_NAT64
 
+#if OTBR_ENABLE_DHCP6_PD
+threadnetwork::TelemetryData_Dhcp6PdState Dhcp6PdStateFromOtDhcp6PdState(otBorderRoutingDhcp6PdState dhcp6PdState)
+{
+    threadnetwork::TelemetryData_Dhcp6PdState pdState = threadnetwork::TelemetryData::DHCP6_PD_STATE_UNSPECIFIED;
+
+    switch (dhcp6PdState)
+    {
+    case OT_BORDER_ROUTING_DHCP6_PD_STATE_DISABLED:
+        pdState = threadnetwork::TelemetryData::DHCP6_PD_STATE_DISABLED;
+        break;
+    case OT_BORDER_ROUTING_DHCP6_PD_STATE_STOPPED:
+        pdState = threadnetwork::TelemetryData::DHCP6_PD_STATE_STOPPED;
+        break;
+    case OT_BORDER_ROUTING_DHCP6_PD_STATE_RUNNING:
+        pdState = threadnetwork::TelemetryData::DHCP6_PD_STATE_RUNNING;
+        break;
+    default:
+        break;
+    }
+
+    return pdState;
+}
+#endif // OTBR_ENABLE_DHCP6_PD
+
 void CopyMdnsResponseCounters(const MdnsResponseCounters &from, threadnetwork::TelemetryData_MdnsResponseCounters *to)
 {
     to->set_success_count(from.mSuccess);
@@ -202,10 +230,10 @@ ThreadHelper::ThreadHelper(otInstance *aInstance, otbr::Ncp::ControllerOpenThrea
     : mInstance(aInstance)
     , mNcp(aNcp)
 {
-#if OTBR_ENABLE_TELEMETRY_DATA_API && OTBR_ENABLE_NAT64
+#if OTBR_ENABLE_TELEMETRY_DATA_API && (OTBR_ENABLE_NAT64 || OTBR_ENABLE_DHCP6_PD)
     otError error;
 
-    SuccessOrExit(error = otPlatCryptoRandomGet(mNat64Ipv6AddressSalt, sizeof(mNat64Ipv6AddressSalt)));
+    SuccessOrExit(error = otPlatCryptoRandomGet(mNat64PdCommonSalt, sizeof(mNat64PdCommonSalt)));
 
 exit:
     if (error != OT_ERROR_NONE)
@@ -1159,6 +1187,14 @@ otError ThreadHelper::RetrieveTelemetryData(Mdns::Publisher *aPublisher, threadn
         borderRoutingCouters->set_rs_rx(otBorderRoutingCounters->mRsRx);
         borderRoutingCouters->set_rs_tx_success(otBorderRoutingCounters->mRsTxSuccess);
         borderRoutingCouters->set_rs_tx_failure(otBorderRoutingCounters->mRsTxFailure);
+        borderRoutingCouters->mutable_inbound_internet()->set_packet_count(
+            otBorderRoutingCounters->mInboundInternet.mPackets);
+        borderRoutingCouters->mutable_inbound_internet()->set_byte_count(
+            otBorderRoutingCounters->mInboundInternet.mBytes);
+        borderRoutingCouters->mutable_outbound_internet()->set_packet_count(
+            otBorderRoutingCounters->mOutboundInternet.mPackets);
+        borderRoutingCouters->mutable_outbound_internet()->set_byte_count(
+            otBorderRoutingCounters->mOutboundInternet.mBytes);
 
 #if OTBR_ENABLE_NAT64
         {
@@ -1206,6 +1242,25 @@ otError ThreadHelper::RetrieveTelemetryData(Mdns::Publisher *aPublisher, threadn
         }
 #endif // OTBR_ENABLE_NAT64
        // End of BorderRoutingCounters section.
+
+#if OTBR_ENABLE_TREL
+        // Begin of TrelInfo section.
+        {
+            auto trelInfo       = wpanBorderRouter->mutable_trel_info();
+            auto otTrelCounters = otTrelGetCounters(mInstance);
+            auto trelCounters   = trelInfo->mutable_counters();
+
+            trelInfo->set_is_trel_enabled(otTrelIsEnabled(mInstance));
+            trelInfo->set_num_trel_peers(otTrelGetNumberOfPeers(mInstance));
+
+            trelCounters->set_trel_tx_packets(otTrelCounters->mTxPackets);
+            trelCounters->set_trel_tx_bytes(otTrelCounters->mTxBytes);
+            trelCounters->set_trel_tx_packets_failed(otTrelCounters->mTxFailure);
+            trelCounters->set_tre_rx_packets(otTrelCounters->mRxPackets);
+            trelCounters->set_trel_rx_bytes(otTrelCounters->mRxBytes);
+        }
+        // End of TrelInfo section.
+#endif // OTBR_ENABLE_TREL
 
 #if OTBR_ENABLE_SRP_ADVERTISING_PROXY
         // Begin of SrpServerInfo section.
@@ -1292,6 +1347,11 @@ otError ThreadHelper::RetrieveTelemetryData(Mdns::Publisher *aPublisher, threadn
             dnsServerResponseCounters->set_other_count(otDnssdCounters.mOtherResponse);
 
             dnsServer->set_resolved_by_local_srp_count(otDnssdCounters.mResolvedBySrp);
+
+            // The counters of queries, responses, failures handled by upstream DNS server.
+            dnsServerResponseCounters->set_upstream_dns_queries(otDnssdCounters.mUpstreamDnsCounters.mQueries);
+            dnsServerResponseCounters->set_upstream_dns_responses(otDnssdCounters.mUpstreamDnsCounters.mResponses);
+            dnsServerResponseCounters->set_upstream_dns_failures(otDnssdCounters.mUpstreamDnsCounters.mFailures);
         }
         // End of DnsServerInfo section.
 #endif // OTBR_ENABLE_DNSSD_DISCOVERY_PROXY
@@ -1342,26 +1402,77 @@ otError ThreadHelper::RetrieveTelemetryData(Mdns::Publisher *aPublisher, threadn
                 CopyNat64TrafficCounters(otMapping.mCounters.mUdp, nat64MappingCounters->mutable_udp());
                 CopyNat64TrafficCounters(otMapping.mCounters.mIcmp, nat64MappingCounters->mutable_icmp());
 
-                {
-                    uint8_t ipAddrShaInput[OT_IP6_ADDRESS_SIZE + kNat64SourceAddressHashSaltLength];
-                    memcpy(ipAddrShaInput, otMapping.mIp6.mFields.m8, sizeof(otMapping.mIp6.mFields.m8));
-                    memcpy(&ipAddrShaInput[sizeof(otMapping.mIp6.mFields.m8)], mNat64Ipv6AddressSalt,
-                           sizeof(mNat64Ipv6AddressSalt));
+                sha256.Start();
+                sha256.Update(otMapping.mIp6.mFields.m8, sizeof(otMapping.mIp6.mFields.m8));
+                sha256.Update(mNat64PdCommonSalt, sizeof(mNat64PdCommonSalt));
+                sha256.Finish(hash);
 
-                    sha256.Start();
-                    sha256.Update(ipAddrShaInput, sizeof(ipAddrShaInput));
-                    sha256.Finish(hash);
-
-                    nat64Mapping->mutable_hashed_ipv6_address()->append(reinterpret_cast<const char *>(hash.GetBytes()),
-                                                                        sizeof(hash.GetBytes()));
-                    // Remaining time is not included in the telemetry
-                }
+                nat64Mapping->mutable_hashed_ipv6_address()->append(reinterpret_cast<const char *>(hash.GetBytes()),
+                                                                    Sha256::Hash::kSize);
+                // Remaining time is not included in the telemetry
             }
         }
         // End of Nat64Mapping section.
 #endif // OTBR_ENABLE_NAT64
+#if OTBR_ENABLE_DHCP6_PD
+        // Start of Dhcp6PdState section.
+        wpanBorderRouter->set_dhcp6_pd_state(Dhcp6PdStateFromOtDhcp6PdState(otBorderRoutingDhcp6PdGetState(mInstance)));
+        // End of Dhcp6PdState section.
 
-        // End of WpanBorderRouter section.
+        // Start of Hashed PD prefix
+        {
+            otBorderRoutingPrefixTableEntry aPrefixInfo;
+            const uint8_t                  *prefixAddr          = nullptr;
+            const uint8_t                  *truncatedHash       = nullptr;
+            constexpr size_t                kHashPrefixLength   = 6;
+            constexpr size_t                kHashedPrefixLength = 2;
+            std::vector<uint8_t>            hashedPdHeader      = {0x20, 0x01, 0x0d, 0xb8};
+            std::vector<uint8_t>            hashedPdTailer      = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            std::vector<uint8_t>            hashedPdPrefix;
+            hashedPdPrefix.reserve(16);
+            Sha256       sha256;
+            Sha256::Hash hash;
+
+            otBorderRoutingGetPdOmrPrefix(mInstance, &aPrefixInfo);
+            prefixAddr = aPrefixInfo.mPrefix.mPrefix.mFields.m8;
+
+            // TODO: Put below steps into a reusable function.
+            sha256.Start();
+            sha256.Update(prefixAddr, kHashPrefixLength);
+            sha256.Update(mNat64PdCommonSalt, kNat64PdCommonHashSaltLength);
+            sha256.Finish(hash);
+
+            // Append hashedPdHeader
+            hashedPdPrefix.insert(hashedPdPrefix.end(), hashedPdHeader.begin(), hashedPdHeader.end());
+
+            // Append the first 2 bytes of the hashed prefix
+            truncatedHash = hash.GetBytes();
+            hashedPdPrefix.insert(hashedPdPrefix.end(), truncatedHash, truncatedHash + kHashedPrefixLength);
+
+            // Append ip[6] and ip[7]
+            hashedPdPrefix.push_back(prefixAddr[6]);
+            hashedPdPrefix.push_back(prefixAddr[7]);
+
+            // Append hashedPdTailer
+            hashedPdPrefix.insert(hashedPdPrefix.end(), hashedPdTailer.begin(), hashedPdTailer.end());
+
+            wpanBorderRouter->mutable_hashed_pd_prefix()->append(reinterpret_cast<const char *>(hashedPdPrefix.data()),
+                                                                 hashedPdPrefix.size());
+        }
+        // End of Hashed PD prefix
+        // Start of DHCPv6 PD processed RA Info
+        {
+            auto                pdProcessedRaInfo = wpanBorderRouter->mutable_pd_processed_ra_info();
+            otPdProcessedRaInfo raInfo;
+
+            otBorderRoutingGetPdProcessedRaInfo(mInstance, &raInfo);
+            pdProcessedRaInfo->set_num_platform_ra_received(raInfo.mNumPlatformRaReceived);
+            pdProcessedRaInfo->set_num_platform_pio_processed(raInfo.mNumPlatformPioProcessed);
+            pdProcessedRaInfo->set_last_platform_ra_msec(raInfo.mLastPlatformRaMsec);
+        }
+        // End of DHCPv6 PD processed RA Info
+#endif // OTBR_ENABLE_DHCP6_PD
+       // End of WpanBorderRouter section.
 
         // Start of WpanRcp section.
         {
