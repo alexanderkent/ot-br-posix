@@ -570,10 +570,6 @@ void PublisherAvahi::HandleGroupState(AvahiEntryGroup *aGroup, AvahiEntryGroupSt
     case AVAHI_ENTRY_GROUP_UNCOMMITED:
     case AVAHI_ENTRY_GROUP_REGISTERING:
         break;
-
-    default:
-        assert(false);
-        break;
     }
 }
 
@@ -695,10 +691,6 @@ void PublisherAvahi::HandleClientState(AvahiClient *aClient, AvahiClientState aS
 
     case AVAHI_CLIENT_CONNECTING:
         otbrLogInfo("Avahi client is connecting to the server");
-        break;
-
-    default:
-        assert(false);
         break;
     }
 }
@@ -1047,7 +1039,7 @@ void PublisherAvahi::UnsubscribeService(const std::string &aType, const std::str
                           return aService->mType == aType && aService->mInstanceName == aInstanceName;
                       });
 
-    assert(it != mSubscribedServices.end());
+    VerifyOrExit(it != mSubscribedServices.end());
 
     {
         std::unique_ptr<ServiceSubscription> service = std::move(*it);
@@ -1106,7 +1098,7 @@ void PublisherAvahi::UnsubscribeHost(const std::string &aHostName)
         mSubscribedHosts.begin(), mSubscribedHosts.end(),
         [&aHostName](const std::unique_ptr<HostSubscription> &aHost) { return aHost->mHostName == aHostName; });
 
-    assert(it != mSubscribedHosts.end());
+    VerifyOrExit(it != mSubscribedHosts.end());
 
     {
         std::unique_ptr<HostSubscription> host = std::move(*it);
