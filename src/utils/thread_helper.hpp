@@ -43,6 +43,7 @@
 #include <string>
 #include <vector>
 
+#include <openthread/border_routing.h>
 #include <openthread/instance.h>
 #include <openthread/ip6.h>
 #include <openthread/jam_detection.h>
@@ -56,7 +57,7 @@
 
 namespace otbr {
 namespace Ncp {
-class ControllerOpenThread;
+class RcpHost;
 }
 } // namespace otbr
 
@@ -76,15 +77,18 @@ public:
     using AttachHandler           = std::function<void(otError, int64_t)>;
     using UpdateMeshCopTxtHandler = std::function<void(std::map<std::string, std::vector<uint8_t>>)>;
     using DatasetChangeHandler    = std::function<void(const otOperationalDatasetTlvs &)>;
+#if OTBR_ENABLE_DHCP6_PD
+    using Dhcp6PdStateCallback = std::function<void(otBorderRoutingDhcp6PdState)>;
+#endif
 
     /**
      * The constructor of a Thread helper.
      *
      * @param[in] aInstance  The Thread instance.
-     * @param[in] aNcp       The ncp controller.
+     * @param[in] aHost      The Thread controller.
      *
      */
-    ThreadHelper(otInstance *aInstance, otbr::Ncp::ControllerOpenThread *aNcp);
+    ThreadHelper(otInstance *aInstance, otbr::Ncp::RcpHost *aHost);
 
     /**
      * This method adds a callback for device role change.
@@ -93,6 +97,16 @@ public:
      *
      */
     void AddDeviceRoleHandler(DeviceRoleHandler aHandler);
+
+#if OTBR_ENABLE_DHCP6_PD
+    /**
+     * This method adds a callback for DHCPv6 PD state change.
+     *
+     * @param[in] aCallback  The DHCPv6 PD state change callback.
+     *
+     */
+    void SetDhcp6PdStateCallback(Dhcp6PdStateCallback aCallback);
+#endif
 
     /**
      * This method adds a callback for active dataset change.
@@ -223,7 +237,10 @@ public:
      * @returns The underlying instance.
      *
      */
-    otInstance *GetInstance(void) { return mInstance; }
+    otInstance *GetInstance(void)
+    {
+        return mInstance;
+    }
 
     /**
      * This method handles OpenThread state changed notification.
@@ -302,9 +319,24 @@ private:
 
     void ActiveDatasetChangedCallback(void);
 
+#if OTBR_ENABLE_DHCP6_PD
+    static void BorderRoutingDhcp6PdCallback(otBorderRoutingDhcp6PdState aState, void *aThreadHelper);
+    void        BorderRoutingDhcp6PdCallback(otBorderRoutingDhcp6PdState aState);
+#endif
+#if OTBR_ENABLE_TELEMETRY_DATA_API
+#if OTBR_ENABLE_BORDER_ROUTING
+    void RetrieveExternalRouteInfo(threadnetwork::TelemetryData::ExternalRoutes *aExternalRouteInfo);
+#endif
+#if OTBR_ENABLE_DHCP6_PD
+    void RetrievePdInfo(threadnetwork::TelemetryData::WpanBorderRouter *aWpanBorderRouter);
+    void RetrieveHashedPdPrefix(std::string *aHashedPdPrefix);
+    void RetrievePdProcessedRaInfo(threadnetwork::TelemetryData::PdProcessedRaInfo *aPdProcessedRaInfo);
+#endif
+#endif // OTBR_ENABLE_TELEMETRY_DATA_API
+
     otInstance *mInstance;
 
-    otbr::Ncp::ControllerOpenThread *mNcp;
+    otbr::Ncp::RcpHost *mHost;
 
     ScanHandler                     mScanHandler;
     std::vector<otActiveScanResult> mScanResults;
@@ -327,6 +359,10 @@ private:
     otOperationalDatasetTlvs mAttachPendingDatasetTlvs = {};
 
     std::random_device mRandomDevice;
+
+#if OTBR_ENABLE_DHCP6_PD
+    Dhcp6PdStateCallback mDhcp6PdCallback;
+#endif
 
 #if OTBR_ENABLE_DBUS_SERVER
     UpdateMeshCopTxtHandler mUpdateMeshCopTxtHandler;

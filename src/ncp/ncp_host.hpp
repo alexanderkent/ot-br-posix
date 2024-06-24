@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020, The OpenThread Authors.
+ *  Copyright (c) 2024, The OpenThread Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -28,76 +28,55 @@
 
 /**
  * @file
- *   This file includes definitions for RESTful HTTP server.
+ *   This file includes definitions of OpenThead Host for NCP.
  */
 
-#ifndef OTBR_REST_REST_WEB_SERVER_HPP_
-#define OTBR_REST_REST_WEB_SERVER_HPP_
+#ifndef OTBR_AGENT_NCP_HOST_HPP_
+#define OTBR_AGENT_NCP_HOST_HPP_
 
-#include "openthread-br/config.h"
-
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <sys/socket.h>
+#include "lib/spinel/coprocessor_type.h"
+#include "lib/spinel/spinel_driver.hpp"
 
 #include "common/mainloop.hpp"
-#include "rest/connection.hpp"
-
-using otbr::Ncp::RcpHost;
-using std::chrono::steady_clock;
+#include "ncp/thread_host.hpp"
 
 namespace otbr {
-namespace rest {
+namespace Ncp {
 
-/**
- * This class implements a REST server.
- *
- */
-class RestWebServer : public MainloopProcessor
+class NcpHost : public MainloopProcessor, public ThreadHost
 {
 public:
     /**
-     * The constructor to initialize a REST server.
+     * Constructor.
      *
-     * @param[in] aHost  A reference to the Thread controller.
+     * @param[in]   aDryRun  TRUE to indicate dry-run mode. FALSE otherwise.
      *
      */
-    RestWebServer(RcpHost &aHost, const std::string &aRestListenAddress, int aRestListenPort);
+    NcpHost(bool aDryRun);
 
     /**
-     * The destructor destroys the server instance.
+     * Destructor.
      *
      */
-    ~RestWebServer(void) override;
+    ~NcpHost(void) override = default;
 
-    /**
-     * This method initializes the REST server.
-     *
-     */
-    void Init(void);
+    // ThreadHost methods
+    void            GetDeviceRole(const DeviceRoleHandler aHandler) override;
+    CoprocessorType GetCoprocessorType(void) override { return OT_COPROCESSOR_NCP; }
+    const char     *GetCoprocessorVersion(void) override;
+    void            Init(void) override;
+    void            Deinit(void) override;
 
+    // MainloopProcessor methods
     void Update(MainloopContext &aMainloop) override;
     void Process(const MainloopContext &aMainloop) override;
 
 private:
-    void      UpdateConnections(const fd_set &aReadFdSet);
-    void      CreateNewConnection(int32_t &aFd);
-    otbrError Accept(int32_t aListenFd);
-    bool      ParseListenAddress(const std::string listenAddress, struct in6_addr *sin6_addr);
-    void      InitializeListenFd(void);
-    bool      SetFdNonblocking(int32_t fd);
-
-    // Resource handler
-    Resource mResource;
-    // Struct for server configuration
-    sockaddr_in6 mAddress;
-    // File descriptor for listening
-    int32_t mListenFd;
-    // Connection List
-    std::unordered_map<int32_t, std::unique_ptr<Connection>> mConnectionSet;
+    ot::Spinel::SpinelDriver &mSpinelDriver;
+    otPlatformConfig          mConfig;
 };
 
-} // namespace rest
+} // namespace Ncp
 } // namespace otbr
 
-#endif // OTBR_REST_REST_WEB_SERVER_HPP_
+#endif // OTBR_AGENT_NCP_HOST_HPP_

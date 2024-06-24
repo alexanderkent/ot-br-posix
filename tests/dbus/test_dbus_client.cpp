@@ -285,12 +285,12 @@ void CheckTelemetryData(ThreadApiDBus *aApi)
     TEST_ASSERT(telemetryData.wpan_stats().phy_tx() > 0);
     TEST_ASSERT(telemetryData.wpan_stats().phy_rx() > 0);
     TEST_ASSERT(telemetryData.wpan_stats().ip_tx_success() > 0);
-    TEST_ASSERT(telemetryData.wpan_topo_full().rloc16() > 0);
+    TEST_ASSERT(telemetryData.wpan_topo_full().rloc16() < 0xffff);
     TEST_ASSERT(telemetryData.wpan_topo_full().network_data().size() > 0);
     TEST_ASSERT(telemetryData.wpan_topo_full().partition_id() > 0);
     TEST_ASSERT(telemetryData.wpan_topo_full().extended_pan_id() > 0);
     TEST_ASSERT(telemetryData.topo_entries_size() == 1);
-    TEST_ASSERT(telemetryData.topo_entries(0).rloc16() > 0);
+    TEST_ASSERT(telemetryData.topo_entries(0).rloc16() < 0xffff);
     TEST_ASSERT(telemetryData.wpan_border_router().border_routing_counters().rs_tx_failure() == 0);
 #if OTBR_ENABLE_SRP_ADVERTISING_PROXY
     TEST_ASSERT(telemetryData.wpan_border_router().srp_server().state() ==
@@ -305,13 +305,30 @@ void CheckTelemetryData(ThreadApiDBus *aApi)
     TEST_ASSERT(telemetryData.wpan_border_router().trel_info().counters().trel_tx_packets() == 0);
     TEST_ASSERT(telemetryData.wpan_border_router().trel_info().counters().trel_tx_bytes() == 0);
 #endif
+#if OTBR_ENABLE_BORDER_ROUTING
+    TEST_ASSERT(telemetryData.wpan_border_router().infra_link_info().name() == "lo");
+    TEST_ASSERT(telemetryData.wpan_border_router().infra_link_info().is_up());
+    TEST_ASSERT(telemetryData.wpan_border_router().infra_link_info().is_running());
+    TEST_ASSERT(!telemetryData.wpan_border_router().infra_link_info().is_multicast());
+    TEST_ASSERT(telemetryData.wpan_border_router().infra_link_info().link_local_address_count() == 0);
+    TEST_ASSERT(telemetryData.wpan_border_router().infra_link_info().unique_local_address_count() == 0);
+    TEST_ASSERT(telemetryData.wpan_border_router().infra_link_info().global_unicast_address_count() == 0);
+    TEST_ASSERT(telemetryData.wpan_border_router().external_route_info().has_default_route_added() == false);
+    TEST_ASSERT(telemetryData.wpan_border_router().external_route_info().has_ula_route_added() == false);
+    TEST_ASSERT(telemetryData.wpan_border_router().external_route_info().has_others_route_added() == false);
+#endif
     TEST_ASSERT(telemetryData.wpan_border_router().mdns().service_registration_responses().success_count() > 0);
 #if OTBR_ENABLE_NAT64
     TEST_ASSERT(telemetryData.wpan_border_router().nat64_state().prefix_manager_state() ==
                 threadnetwork::TelemetryData::NAT64_STATE_NOT_RUNNING);
 #endif
 #if OTBR_ENABLE_DHCP6_PD
-    TEST_ASSERT(!telemetryData.wpan_border_router().hashed_pd_prefix().empty());
+    TEST_ASSERT(telemetryData.wpan_border_router().dhcp6_pd_state() ==
+                threadnetwork::TelemetryData::DHCP6_PD_STATE_DISABLED);
+    TEST_ASSERT(telemetryData.wpan_border_router().hashed_pd_prefix().empty());
+    TEST_ASSERT(telemetryData.wpan_border_router().pd_processed_ra_info().num_platform_ra_received() == 0);
+    TEST_ASSERT(telemetryData.wpan_border_router().pd_processed_ra_info().num_platform_pio_processed() == 0);
+    TEST_ASSERT(telemetryData.wpan_border_router().pd_processed_ra_info().last_platform_ra_msec() == 0);
 #endif
     TEST_ASSERT(telemetryData.wpan_rcp().rcp_interface_statistics().transferred_frames_count() > 0);
     TEST_ASSERT(telemetryData.coex_metrics().count_tx_request() > 0);
