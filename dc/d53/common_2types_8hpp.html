@@ -22,7 +22,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">openthread-br
-   &#160;<span id="projectnumber">0.3.0-261a0a1</span>
+   &#160;<span id="projectnumber">0.3.0-a994884</span>
    </div>
   </td>
  </tr>
@@ -69,7 +69,8 @@ $(function() {
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
 <a href="#define-members">Macros</a> &#124;
-<a href="#enum-members">Enumerations</a>  </div>
+<a href="#enum-members">Enumerations</a> &#124;
+<a href="#func-members">Functions</a>  </div>
   <div class="headertitle">
 <div class="title">types.hpp File Reference</div>  </div>
 </div><!--header-->
@@ -80,6 +81,7 @@ $(function() {
 <code>#include &lt;string.h&gt;</code><br />
 <code>#include &lt;string&gt;</code><br />
 <code>#include &lt;vector&gt;</code><br />
+<code>#include &lt;openthread/error.h&gt;</code><br />
 <code>#include &quot;<a class="el" href="../../db/d58/byteswap_8hpp_source.html">common/byteswap.hpp</a>&quot;</code><br />
 </div>
 <p><a href="../../dc/d53/common_2types_8hpp_source.html">Go to the source code of this file.</a></p>
@@ -151,6 +153,11 @@ Enumerations</h2></td></tr>
 <br />
  }</td></tr>
 <tr class="separator:a0f4a0a1628a3c1fa46cb88cc1dddf207"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:ab84bfe4a5e56a3fd44dd7cb7bc5a83d6"><td class="memItemLeft" align="right" valign="top">otError&#160;</td><td class="memItemRight" valign="bottom"><b>otbr::OtbrErrorToOtError</b> (<a class="el" href="../../dc/d53/common_2types_8hpp.html#a9addd74a14dca1dab1b3e7a8205455aa">otbrError</a> aError)</td></tr>
+<tr class="separator:ab84bfe4a5e56a3fd44dd7cb7bc5a83d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>This file includes definition for data types used by Thread border agent. </p>
@@ -241,6 +248,33 @@ Enumerations</h2></td></tr>
 <tr><td class="fieldname"><a id="a9addd74a14dca1dab1b3e7a8205455aaa4afb9a76eb1e9823fd3eb36ef07f6c8b"></a>OTBR_ERROR_INFRA_LINK_CHANGED&#160;</td><td class="fielddoc"><p>The infrastructure link is changed. </p>
 </td></tr>
 </table>
+
+</div>
+</div>
+<h2 class="groupheader">Function Documentation</h2>
+<a id="ab84bfe4a5e56a3fd44dd7cb7bc5a83d6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab84bfe4a5e56a3fd44dd7cb7bc5a83d6">&#9670;&nbsp;</a></span>OtbrErrorToOtError()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">otError otbr::OtbrErrorToOtError </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="../../dc/d53/common_2types_8hpp.html#a9addd74a14dca1dab1b3e7a8205455aa">otbrError</a>&#160;</td>
+          <td class="paramname"><em>aError</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>This method converts a otbrError to a otError.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">aError</td><td>a otbrError code.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>a otError code. </dd></dl>
 
 </div>
 </div>
